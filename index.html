@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Robot Animation</title>
+    <script src="https://unpkg.com/@lottiefiles/lottie-player@2.0.4/dist/lottie-player.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: linear-gradient(160deg, #0f172a 0%, #1e1b4b 45%, #312e81 100%);
+            color: #e2e8f0;
+            padding: 2rem;
+        }
+
+        .container {
+            text-align: center;
+            max-width: 560px;
+            width: 100%;
+        }
+
+        h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.02em;
+        }
+
+        .subtitle {
+            color: #94a3b8;
+            margin-bottom: 2rem;
+            font-size: 1.05rem;
+        }
+
+        .player-shell {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 1.25rem;
+            padding: 1.5rem;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 24px 48px rgba(0, 0, 0, 0.35);
+        }
+
+        .player-wrapper {
+            position: relative;
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto;
+            border-radius: 0.75rem;
+            overflow: hidden;
+            background: radial-gradient(circle at 50% 60%, rgba(48, 237, 235, 0.08) 0%, transparent 70%);
+        }
+
+        #svg-overlay {
+            position: absolute;
+            inset: 0 0 46px 0;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        #svg-overlay svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        lottie-player {
+            width: 100%;
+            aspect-ratio: 1;
+            --lottie-player-background: transparent;
+        }
+
+        .status {
+            margin-top: 1rem;
+            font-size: 0.8rem;
+            color: #64748b;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Hi there!</h1>
+        <p class="subtitle">Waving robot animation from Hi.svg, powered by Lottie player</p>
+
+        <div class="player-shell">
+            <div class="player-wrapper">
+                <div id="svg-overlay" aria-label="Robot waving animation"></div>
+                <lottie-player
+                    id="robot-lottie"
+                    src="hi.json"
+                    background="transparent"
+                    speed="1"
+                    autoplay
+                    loop
+                    renderer="svg"
+                ></lottie-player>
+            </div>
+            <p class="status" id="status">Loading animation…</p>
+        </div>
+    </div>
+
+    <script>
+        const player = document.getElementById('robot-lottie');
+        const overlay = document.getElementById('svg-overlay');
+        const statusEl = document.getElementById('status');
+        const BASE_DURATION = 3.017;
+
+        let svgRoot = null;
+        let lastSpeed = 1;
+
+        function setStatus(text) {
+            statusEl.textContent = text;
+        }
+
+        function applySpeed() {
+            if (!svgRoot) return;
+            const speed = player.speed || 1;
+            if (speed === lastSpeed) return;
+            lastSpeed = speed;
+            const dur = (BASE_DURATION / speed).toFixed(3) + 's';
+            svgRoot.querySelectorAll('animateTransform').forEach((anim) => {
+                anim.setAttribute('dur', dur);
+            });
+        }
+
+        function syncSvgTime() {
+            if (!svgRoot) return;
+            const lottie = typeof player.getLottie === 'function' ? player.getLottie() : null;
+            if (!lottie || !lottie.totalFrames) return;
+            const progress = lottie.currentFrame / lottie.totalFrames;
+            svgRoot.setCurrentTime(progress * BASE_DURATION);
+        }
+
+        function playSvg() {
+            if (!svgRoot) return;
+            applySpeed();
+            syncSvgTime();
+            svgRoot.unpauseAnimations();
+        }
+
+        function pauseSvg() {
+            if (!svgRoot) return;
+            svgRoot.pauseAnimations();
+        }
+
+        fetch('Hi.svg')
+            .then((response) => {
+                if (!response.ok) throw new Error('Could not load Hi.svg');
+                return response.text();
+            })
+            .then((svgText) => {
+                overlay.innerHTML = svgText;
+                svgRoot = overlay.querySelector('svg');
+                if (!svgRoot) throw new Error('Invalid SVG content');
+
+                svgRoot.pauseAnimations();
+                svgRoot.setCurrentTime(0);
+                setStatus('Ready · looping continuously');
+            })
+            .catch((err) => {
+                setStatus('Failed to load Hi.svg: ' + err.message);
+            });
+
+        player.addEventListener('ready', playSvg);
+
+        player.addEventListener('play', () => {
+            playSvg();
+            setStatus('Playing');
+        });
+
+        player.addEventListener('pause', () => {
+            pauseSvg();
+            setStatus('Paused');
+        });
+
+        player.addEventListener('frame', () => {
+            applySpeed();
+            syncSvgTime();
+        });
+
+        player.addEventListener('complete', () => {
+            if (svgRoot) svgRoot.setCurrentTime(0);
+        });
+    </script>
+</body>
+</html>
